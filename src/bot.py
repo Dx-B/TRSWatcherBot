@@ -36,7 +36,7 @@ FFMPEG_OPTIONS = {
 @client.listen()
 async def on_ready():
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="for trouble."))
-    print('Logged in as'+client.user.name)
+    print('Logged in as ' + client.user.name)
 
 
 @client.bridge_command(description="Ping, pong!")
@@ -76,7 +76,7 @@ async def leave(ctx):
         await ctx.send("The bot is not connected to a voice channel.")
 
 
-@client.bridge_command(description="Search for and play a video.", aliases=['p'])
+@client.bridge_command(description="Search for and play a video.", aliases=['p', 'P'])
 async def play(ctx, *, query=None):
     if query is None:  # If no query is specified
         await ctx.send("Please specify a song name or URL.")
@@ -104,7 +104,7 @@ async def play(ctx, *, query=None):
                     url = info['entries'][0]['webpage_url']
                     # Add the song to the queue
                     TRSWatcherBot.queue.append(url)
-                    await ctx.send(f"Added {YouTube(url).title} to the queue + {'(' + url + ')'}")
+                    await ctx.send(f"Added {YouTube(url).title} to the queue {'(' + url + ')'}")
                     # If the bot is not already playing, start playing the song
                     if not ctx.voice_client or not ctx.voice_client.is_playing():
                         TRSWatcherBot.currentlyPlaying = TRSWatcherBot.queue[0]
