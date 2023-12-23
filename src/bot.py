@@ -27,6 +27,10 @@ class TRSWatcherBot(bridge.Bot):
 
 
 client = TRSWatcherBot(intents=TRSWatcherBot.intents, command_prefix='!')
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn',
+}
 
 
 @client.listen()
@@ -65,22 +69,37 @@ async def join(ctx):
         await ctx.send("You are not connected to a voice channel.")
 
 
+@client.bridge_command(description="Makes the bot leave the voice channel.")
+async def leave(ctx):
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+    else:
+        await ctx.send("The bot is not connected to a voice channel.")
+
+
 @client.bridge_command(description="Search for and play a video.")
 async def play(ctx, *, query=None):
     if query is None:  # If no query is specified
         await ctx.send("Please specify a song name or URL.")
     else:
         try:
-            ydl_opts = {
+            YTDL_OPTIONS = {
                 'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'ffmpeg_options': ['-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '0']
+                'extractaudio': True,
+                'audioformat': 'mp3',
+                'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+                'restrictfilenames': True,
+                'noplaylist': True,
+                'nocheckcertificate': True,
+                'ignoreerrors': False,
+                'logtostderr': False,
+                'quiet': True,
+                'no_warnings': True,
+                'default_search': 'ytsearch',
+                'source_address': '0.0.0.0',
             }
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+
+            with youtube_dl.YoutubeDL(YTDL_OPTIONS) as ydl:
                 info = ydl.extract_info(f"ytsearch:{query}", download=False)
                 if 'entries' in info and len(info['entries']) > 0:
                     url = info['entries'][0]['webpage_url']
@@ -122,7 +141,7 @@ async def play_song(ctx):
         voice_client = await voice_channel.connect()
         TRSWatcherBot.connected = True
         print("//DEBUG: Not connected but got connected.")
-        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url)
+        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url, **FFMPEG_OPTIONS)
         # Play the audio in the voice channel
         print("Now attempting to play: " + YouTube(url).title)
         voice_client.play(audio_source,
@@ -130,7 +149,7 @@ async def play_song(ctx):
 
     else:
         print("//DEBUG: The bot is currently connected to a voice channel: Attempting to play.")
-        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url)
+        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url, **FFMPEG_OPTIONS)
         voice_client = ctx.voice_client
 
         # Play the audio in the voice channel
@@ -201,6 +220,17 @@ async def queue(ctx):
 async def clear(ctx):
     TRSWatcherBot.queue.clear()
     await ctx.send("Cleared the music queue.")
+
+
+@client.bridge_command(description="Remove a song from the queue.")
+async def remove(ctx, position):
+    if position.isdigit():
+        position = int(position)
+        if len(TRSWatcherBot.queue) >= position:
+            await ctx.send("Removed: **" + YouTube(TRSWatcherBot.queue[position - 1]).title + "**")
+            TRSWatcherBot.queue.remove(TRSWatcherBot.queue[position - 1])
+        else:
+            await ctx.send("There is no song at that position.")
 
 
 async def main_bot():
