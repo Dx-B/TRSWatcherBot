@@ -36,8 +36,7 @@ FFMPEG_OPTIONS = {
 @client.listen()
 async def on_ready():
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="for trouble."))
-    print('Logged in as')
-    print(client.user.name)
+    print('Logged in as'+client.user.name)
 
 
 @client.bridge_command(description="Ping, pong!")
@@ -77,7 +76,7 @@ async def leave(ctx):
         await ctx.send("The bot is not connected to a voice channel.")
 
 
-@client.bridge_command(description="Search for and play a video.")
+@client.bridge_command(description="Search for and play a video.", aliases=['p'])
 async def play(ctx, *, query=None):
     if query is None:  # If no query is specified
         await ctx.send("Please specify a song name or URL.")
@@ -105,7 +104,7 @@ async def play(ctx, *, query=None):
                     url = info['entries'][0]['webpage_url']
                     # Add the song to the queue
                     TRSWatcherBot.queue.append(url)
-                    await ctx.send(f"Added {YouTube(url).title + ' (' + url + ')'} to the queue")
+                    await ctx.send(f"Added {YouTube(url).title} to the queue + {'(' + url + ')'}")
                     # If the bot is not already playing, start playing the song
                     if not ctx.voice_client or not ctx.voice_client.is_playing():
                         TRSWatcherBot.currentlyPlaying = TRSWatcherBot.queue[0]
@@ -141,7 +140,10 @@ async def play_song(ctx):
         voice_client = await voice_channel.connect()
         TRSWatcherBot.connected = True
         print("//DEBUG: Not connected but got connected.")
-        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url, **FFMPEG_OPTIONS)
+        audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                               before_options
+                                               ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                               options="-vn")
         # Play the audio in the voice channel
         print("Now attempting to play: " + YouTube(url).title)
         voice_client.play(audio_source,
@@ -149,7 +151,10 @@ async def play_song(ctx):
 
     else:
         print("//DEBUG: The bot is currently connected to a voice channel: Attempting to play.")
-        audio_source = discord.FFmpegPCMAudio(YouTube(url).streams.get_audio_only().url, **FFMPEG_OPTIONS)
+        audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                               before_options
+                                               ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                               options="-vn")
         voice_client = ctx.voice_client
 
         # Play the audio in the voice channel
