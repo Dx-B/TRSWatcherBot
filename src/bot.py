@@ -24,6 +24,8 @@ class TRSWatcherBot(bridge.Bot):
     paused = False
     connected = False
     currentlyPlaying = " "
+    looping = False
+    loopedUrl = " "
 
 
 client = TRSWatcherBot(intents=TRSWatcherBot.intents, command_prefix='!')
@@ -36,7 +38,7 @@ FFMPEG_OPTIONS = {
 @client.listen()
 async def on_ready():
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="for trouble."))
-    print('Logged in as ' + client.user.name)
+    print('Initialized Bot[' + client.user.name + "] with cert token at file://.env ID2ac83a6")
 
 
 @client.bridge_command(description="Ping, pong!")
@@ -53,7 +55,7 @@ async def status(ctx):
 
 @client.bridge_command(description="Roll credits!")
 async def author(ctx):
-    await ctx.respond(f"Bot Version 1.0.0, Developed by Dx-B \"https://github.com/Dx-B\"")
+    await ctx.respond(f"Bot Version 1.0.5, Developed by Dx-B \"https://github.com/Dx-B\"")
 
 
 @client.bridge_command(description="Makes the bot join the voice channel.")
@@ -76,7 +78,7 @@ async def leave(ctx):
         await ctx.send("The bot is not connected to a voice channel.")
 
 
-@client.bridge_command(description="Search for and play a video.", aliases=['p', 'P'])
+@client.bridge_command(description="Search for and play a video.", aliases=['p', 'P', 'Play', 'PLAY'])
 async def play(ctx, *, query=None):
     if query is None:  # If no query is specified
         await ctx.send("Please specify a song name or URL.")
@@ -128,40 +130,72 @@ async def playat(ctx, *, position: int):
 
 async def play_song(ctx):
     # Check if the queue is empty
-    if len(TRSWatcherBot.queue) == 0:
-        await ctx.send("The queue is empty. Use the `play` command to add songs.")
-        return
+    if (TRSWatcherBot.looping == False):
+        if (len(TRSWatcherBot.queue) == 0) and (TRSWatcherBot.looping == False):
+            await ctx.send("The queue is empty. Use the `play` command to add songs.")
+            return
 
-    # Get the URL of the next song in the queue
-    url = TRSWatcherBot.queue.popleft()
-    # Connect to the voice channel
-    voice_channel = ctx.author.voice.channel
-    if ctx.voice_client is None:
-        voice_client = await voice_channel.connect()
-        TRSWatcherBot.connected = True
-        print("//DEBUG: Not connected but got connected.")
-        audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
-                                               before_options
-                                               ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                                               options="-vn")
-        # Play the audio in the voice channel
-        print("Now attempting to play: " + YouTube(url).title)
-        voice_client.play(audio_source,
-                          after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
+        # Get the URL of the next song in the queue
+        url = TRSWatcherBot.queue.popleft()
+        
+        # Connect to the voice channel
+        voice_channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            voice_client = await voice_channel.connect()
+            TRSWatcherBot.connected = True
+            print("//DEBUG: Not connected but got connected.")
+            audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                                before_options
+                                                ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                                options="-vn")
+            # Play the audio in the voice channel
+            print("Now attempting to play: " + YouTube(url).title)
+            voice_client.play(audio_source,
+                            after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
 
+        else:
+            print("//DEBUG: The bot is currently connected to a voice channel: Attempting to play.")
+            audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                                before_options
+                                                ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                                options="-vn")
+            voice_client = ctx.voice_client
+
+            # Play the audio in the voice channel
+            print("Now attempting to play: " + YouTube(url).title)
+            voice_client.play(audio_source,
+                            after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
     else:
-        print("//DEBUG: The bot is currently connected to a voice channel: Attempting to play.")
-        audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
-                                               before_options
-                                               ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                                               options="-vn")
-        voice_client = ctx.voice_client
+        # Get the URL of the next song in the queue
+        url = TRSWatcherBot.loopedUrl
+        
+        # Connect to the voice channel
+        voice_channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            voice_client = await voice_channel.connect()
+            TRSWatcherBot.connected = True
+            print("//DEBUG: Not connected but got connected.")
+            audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                                before_options
+                                                ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                                options="-vn")
+            # Play the audio in the voice channel
+            print("Now attempting to play: " + YouTube(url).title)
+            voice_client.play(audio_source,
+                            after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
 
-        # Play the audio in the voice channel
-        print("Now attempting to play: " + YouTube(url).title)
-        voice_client.play(audio_source,
-                          after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
+        else:
+            print("//DEBUG: The bot is currently connected to a voice channel: Attempting to play.")
+            audio_source = discord.FFmpegOpusAudio(YouTube(url).streams.get_audio_only().url,
+                                                before_options
+                                                ="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                                                options="-vn")
+            voice_client = ctx.voice_client
 
+            # Play the audio in the voice channel
+            print("Now attempting to play: " + YouTube(url).title)
+            voice_client.play(audio_source,
+                            after=lambda e: asyncio.run_coroutine_threadsafe(play_song(ctx), voice_client.loop))
 
 @client.bridge_command(description="Pause the current video")
 async def pause(ctx):
@@ -194,7 +228,7 @@ async def resume(ctx):
         await ctx.send("There is no audio paused to resume.")
 
 
-@client.bridge_command(description="Skip the current video.")
+@client.bridge_command(description="Skip the current video.", aliases=['s'])
 async def skip(ctx):
     ctx.voice_client.stop()
     if len(TRSWatcherBot.queue) != 0:
@@ -202,7 +236,10 @@ async def skip(ctx):
         await play_song(ctx)
         return
     else:
-        ctx.send("There are no songs to skip. Use the `play` command to add songs.")
+        if (TRSWatcherBot.looping == False):
+            await ctx.send("There are no songs to skip. Use the `play` command to add songs.")
+    TRSWatcherBot.loopedUrl = " "
+    TRSWatcherBot.looping = False
 
 
 @client.bridge_command(description="Display the music queue.")
@@ -236,6 +273,33 @@ async def remove(ctx, position):
             TRSWatcherBot.queue.remove(TRSWatcherBot.queue[position - 1])
         else:
             await ctx.send("There is no song at that position.")
+
+@client.bridge_command(description="Enables looping for the currently playing song.", aliases = ['repeat'])
+async def loop(ctx):
+    if (ctx.voice_client and ctx.voice_client.is_playing()):
+        if (TRSWatcherBot.looping == True):
+            TRSWatcherBot.looping = False
+            await ctx.send("Looping disabled!")
+            print("DEBUG: Looping disabled!")
+        else:
+            TRSWatcherBot.looping = True
+            if (TRSWatcherBot.currentlyPlaying != " "):
+                TRSWatcherBot.loopedUrl = TRSWatcherBot.currentlyPlaying
+                await ctx.send("Now looping **" + YouTube(TRSWatcherBot.currentlyPlaying).title + "**")
+
+            await ctx.send("Enabled looping!")
+            print("DEBUG: Enabled looping!")
+    else:
+        await ctx.send("I'm not currently playing any audio to loop.")
+
+@client.bridge_command(description="Plays the last song again.", aliases=['again'])
+async def replay(ctx):
+    if (ctx.voice_client):
+        TRSWatcherBot.queue.append(TRSWatcherBot.currentlyPlaying)
+        await play_song(ctx)
+    else:
+        await ctx.send("There is no song/video to play again.")
+
 
 
 async def main_bot():

@@ -1,2 +1,5 @@
-py-cord-dev
 python-dotenv
+ffmpeg
+pytube
+yt_dlp
+discord
